@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <search.h>
+#include <stdint.h>
 #include "cpu.h"
 
 //global values
@@ -18,20 +19,17 @@ struct hsearch_data *Debug_CommandArgs; //debugging commands
 void initialize_HashTables()
 {
     //all general commands of the program
-    char *commandArgNames[] = { "alpha", "bravo", "charlie", "delta",
-        "echo", "foxtrot", "golf", "hotel", "india", "juliet",
-        "kilo", "lima", "mike", "november", "oscar", "papa",
-        "quebec", "romeo", "sierra", "tango", "uniform",
-        "victor", "whisky", "x-ray", "yankee", "zulu"
+    char *commandArgNames[] = { 
+        "help", "load", "exec", 
+        "memdump", "regdump", "dump", 
+        "srcdump", "stats", "clean"
     };
 
     //all commands for the debugging portion
     char *debug_CommandArgNames[] = {
-        "alpha", "bravo", "charlie", "delta",
-        "echo", "foxtrot", "golf", "hotel", "india", "juliet",
-        "kilo", "lima", "mike", "november", "oscar", "papa",
-        "quebec", "romeo", "sierra", "tango", "uniform",
-        "victor", "whisky", "x-ray", "yankee", "zulu"
+        "verbose", "tail", "memdump",
+        "regdump", "dump", "srcdump",
+        "continue", "remove", "add"
     };
 
     //initialize hash tables
@@ -64,10 +62,10 @@ void initialize_HashTables()
     ENTRY e, *ep;
     int i;
 
-    for(i = 0; i < 10; i++)
+    for(i = 0; i < 9; i++)
     {
         e.key = commandArgNames[i];
-        e.data = (void *)(long) i;
+        e.data = (void *)(intptr_t) i+1;
 
         if (hsearch_r(e, ENTER, &ep, CommandArgs) == 0) {
             fprintf(stderr, "entry failed\n");
@@ -75,10 +73,10 @@ void initialize_HashTables()
         }
     }
 
-    for(i=0; i < 10; i++)
+    for(i=0; i < 9; i++)
     {
-        e.key = commandArgNames[i];
-        e.data = (void *)(long) i;
+        e.key = debug_CommandArgNames[i];
+        e.data = (void *)(intptr_t) i+1;
 
         if (hsearch_r(e, ENTER, &ep, Debug_CommandArgs) == 0) {
             fprintf(stderr, "entry failed\n");
@@ -87,30 +85,29 @@ void initialize_HashTables()
     }
 
     //TESTING HASH TABLES
-    /*
-        for(i = 0; i < 10; i++)
+    
+    for(i = 0; i < 9; i++)
     {
         e.key = commandArgNames[i];
         if (hsearch_r(e, FIND, &ep, CommandArgs) == 0) {
             ep = NULL;
         }
 
-
         printf("%9.9s -> %9.9s:%p\n", e.key,
-               ep ? ep->key : "NULL", ep ? (void *)(long)(ep->data) : 0);
+               ep ? ep->key : "NULL", ep ? (void *)(intptr_t)(ep->data) : 0);
 
-        e.key = commandArgNames[i+11];
-
+        e.key = debug_CommandArgNames[i];
         if (hsearch_r(e, FIND, &ep, Debug_CommandArgs) == 0) {
             ep = NULL;
         }
 
-
         printf("%9.9s -> %9.9s:%p\n", e.key,
-               ep ? ep->key : "NULL", ep ? (void *)(long)(ep->data) : 0);
+               ep ? ep->key : "NULL", ep ? (void *)(intptr_t)(ep->data) : 0);
+        
 
     }
-    */
+
+    printf("done");
 }
 
 
@@ -133,6 +130,7 @@ int main(int argc, char *argv[])
         //init program
         initialize_Program();
         
+        //test
         printf("%d %d %d %d %d %d", cpu.Accumulator, cpu.Index, cpu.InstructionRegister, cpu.ProgramCounter, cpu.StackPointer, cpu.StatusRegisters);
 
         
@@ -142,15 +140,61 @@ int main(int argc, char *argv[])
         input = (char *)malloc(bufsize * sizeof(char));
         if( input == NULL)
         {
-            perror("Unable to allocate space for input");
-            exit(1);
+            fprintf(stderr, "Unable to allocate space for input");
+            exit(EXIT_FAILURE);
         }
 
         printf("(pep)$: ");
         getline(&input, &bufsize, stdin);
+        printf("%s", input);
+        //start parsing what was typed in
+        char command[strlen(input)];
+        sscanf(input, "%s", command);
+
+        ENTRY e, *ep;
+        e.key = command;
+        int success = hsearch_r(e, FIND, &ep, CommandArgs);
+        //if(success == 0)
+        //{
+        //    fprintf(stdout, "command not found, use \"help\" to see a list of commands\n");
+        //    continue;
+        //}
+        printf("Got here");
+
+        int command_data = ep ? (intptr_t)ep->data: 0;
+        printf("%d\n", command_data);
+        switch(command_data)
+        {
+            case 1:
+                break;
+            case 2:
+                break;
+            case 3:
+                break;
+            case 4:
+                break;
+            case 5:
+                break;
+            case 6:
+                break;
+            case 7:
+                break;
+            case 8:
+                break;
+            case 9:
+                break;
+            default:
+                printf("command not found, use \"help\" to see a list of commands");
+                break;
+        }
+
+        //free temp values
+        free(input);
     }
 
-    
+    //free values
+    free(CommandArgs);
+    free(Debug_CommandArgs);
 
     return 0;
 }
