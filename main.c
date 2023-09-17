@@ -8,6 +8,7 @@
 #include <string.h>
 #include <search.h>
 #include <stdint.h>
+#include <ctype.h>
 #include "cpu.h"
 
 //global values
@@ -15,26 +16,30 @@ struct CPU cpu;
 struct hsearch_data *CommandArgs; //general commands of the programs
 struct hsearch_data *Debug_CommandArgs; //debugging commands
 
+//all general commands of the program
+char *commandArgNames[] = { 
+    "help", "load", "exec", 
+    "memdump", "regdump", "dump", 
+    "srcdump", "stats", "clean",
+    "exit"
+};
+
+//all commands for the debugging portion
+char *debug_CommandArgNames[] = {
+    "verbose", "tail", "memdump",
+    "regdump", "dump", "srcdump",
+    "continue", "remove", "add",
+    "exit"
+};
 
 void initialize_HashTables()
 {
-    //all general commands of the program
-    char *commandArgNames[] = { 
-        "help", "load", "exec", 
-        "memdump", "regdump", "dump", 
-        "srcdump", "stats", "clean"
-    };
-
-    //all commands for the debugging portion
-    char *debug_CommandArgNames[] = {
-        "verbose", "tail", "memdump",
-        "regdump", "dump", "srcdump",
-        "continue", "remove", "add"
-    };
-
     //initialize hash tables
     CommandArgs = calloc(1, sizeof(struct hsearch_data));
     Debug_CommandArgs = calloc(1, sizeof(struct hsearch_data));
+
+    //get size of array of command names
+    int commandSize = sizeof(commandArgNames) / sizeof(commandArgNames[0]);
 
     /*
         https://linux.die.net/man/3/hcreate_r
@@ -42,8 +47,10 @@ void initialize_HashTables()
         Typically, this means that nel should be at least 25% larger than the maximum number of elements that the caller expects to 
         store in the table.
     */
+    int tableSize = commandSize + (commandSize*0.5);
+    
     int result;
-    result = hcreate_r(30, CommandArgs);
+    result = hcreate_r(tableSize, CommandArgs);
 
     if(result == 0)
     {
@@ -51,7 +58,7 @@ void initialize_HashTables()
         exit(EXIT_FAILURE);
     }
 
-    result = hcreate_r(30, Debug_CommandArgs);
+    result = hcreate_r(tableSize, Debug_CommandArgs);
     if(result == 0)
     {
         fprintf(stderr, "entry failed on Debug_CommandArgs\n");
@@ -62,7 +69,8 @@ void initialize_HashTables()
     ENTRY e, *ep;
     int i;
 
-    for(i = 0; i < 9; i++)
+    //enter all commands and their integer values
+    for(i = 0; i < commandSize; i++)
     {
         e.key = commandArgNames[i];
         e.data = (void *)(intptr_t) i+1;
@@ -71,10 +79,7 @@ void initialize_HashTables()
             fprintf(stderr, "entry failed\n");
             exit(EXIT_FAILURE);
         }
-    }
 
-    for(i=0; i < 9; i++)
-    {
         e.key = debug_CommandArgNames[i];
         e.data = (void *)(intptr_t) i+1;
 
@@ -85,8 +90,7 @@ void initialize_HashTables()
     }
 
     //TESTING HASH TABLES
-    
-    for(i = 0; i < 9; i++)
+    for(i = 0; i < commandSize; i++)
     {
         e.key = commandArgNames[i];
         if (hsearch_r(e, FIND, &ep, CommandArgs) == 0) {
@@ -120,7 +124,13 @@ void initialize_Program()
     initialize_HashTables();
 }
 
-
+void exit_Program()
+{
+    //free values
+    free(CommandArgs);
+    free(Debug_CommandArgs);
+    exit(EXIT_SUCCESS);
+}
 
 int main(int argc, char *argv[])
 {
@@ -132,7 +142,6 @@ int main(int argc, char *argv[])
         
         //test
         printf("%d %d %d %d %d %d", cpu.Accumulator, cpu.Index, cpu.InstructionRegister, cpu.ProgramCounter, cpu.StackPointer, cpu.StatusRegisters);
-
         
         //wait for the user to enter a command
         char *input;
@@ -146,20 +155,21 @@ int main(int argc, char *argv[])
 
         printf("(pep)$: ");
         getline(&input, &bufsize, stdin);
-        printf("%s", input);
+
         //start parsing what was typed in
         char command[strlen(input)];
         sscanf(input, "%s", command);
 
+        //lowercase version
+        for(int i = 0; i < strlen(command); i++){
+            command[i] = tolower(command[i]);
+        }
+
+        printf("%s", command);
+
         ENTRY e, *ep;
         e.key = command;
         int success = hsearch_r(e, FIND, &ep, CommandArgs);
-        //if(success == 0)
-        //{
-        //    fprintf(stdout, "command not found, use \"help\" to see a list of commands\n");
-        //    continue;
-        //}
-        printf("Got here");
 
         int command_data = ep ? (intptr_t)ep->data: 0;
         printf("%d\n", command_data);
@@ -181,8 +191,11 @@ int main(int argc, char *argv[])
                 break;
             case 8:
                 break;
-            case 9:
+            case 9: //exit program
                 break;
+            case 10: //exit program
+            exit_Program();
+            break;
             default:
                 printf("command not found, use \"help\" to see a list of commands");
                 break;
@@ -191,10 +204,6 @@ int main(int argc, char *argv[])
         //free temp values
         free(input);
     }
-
-    //free values
-    free(CommandArgs);
-    free(Debug_CommandArgs);
 
     return 0;
 }
