@@ -9,6 +9,7 @@
 #include <search.h>
 #include <stdint.h>
 #include <ctype.h>
+#include <unistd.h>
 #include "cpu.h"
 
 //global values
@@ -89,6 +90,7 @@ void initialize_HashTables()
         }
     }
 
+    /*
     //TESTING HASH TABLES
     for(i = 0; i < commandSize; i++)
     {
@@ -110,8 +112,9 @@ void initialize_HashTables()
         
 
     }
+    */
 
-    printf("done");
+    //printf("done");
 }
 
 
@@ -132,6 +135,11 @@ void exit_Program()
     exit(EXIT_SUCCESS);
 }
 
+void load(struct CPU* cpu)
+{
+
+}
+
 int main(int argc, char *argv[])
 {
     //run until we receive an end signal from the user or an error occurs
@@ -140,14 +148,11 @@ int main(int argc, char *argv[])
         //init program
         initialize_Program();
         
-        //test
-        printf("%d %d %d %d %d %d", cpu.Accumulator, cpu.Index, cpu.InstructionRegister, cpu.ProgramCounter, cpu.StackPointer, cpu.StatusRegisters);
-        
+        size_t bufsize = 1000;
         //wait for the user to enter a command
         char *input;
-        size_t bufsize = 1000;
         input = (char *)malloc(bufsize * sizeof(char));
-        if( input == NULL)
+        if(input == NULL)
         {
             fprintf(stderr, "Unable to allocate space for input");
             exit(EXIT_FAILURE);
@@ -155,29 +160,46 @@ int main(int argc, char *argv[])
 
         printf("(pep)$: ");
         getline(&input, &bufsize, stdin);
-
+        
         //start parsing what was typed in
-        char command[strlen(input)];
-        sscanf(input, "%s", command);
+        //char *subtoken;
+        char *token;
+        char **args = malloc(1 * sizeof(char *)); 
+        int i = 0;
+        
+        //separate the user input by strings into a dynamically allocated string array
+        while(token = strsep(&input, " "))
+        {
+            int length = strlen(token);
+            
+            args[i] = (char *)malloc(strlen(token) + 1);
+            args[i] = token;
+            args[i][strcspn(args[i], "\n")] = 0; //let's remove the newline at the end since it is messing up the check for the hash table
+            i++;
+            args = realloc(args, i+1 * sizeof(char *)); //add another space for arg list
+        }
+        
+        
 
-        //lowercase version
-        for(int i = 0; i < strlen(command); i++){
-            command[i] = tolower(command[i]);
+        //lowercase the command
+        for(int i = 0; i < strlen(args[0]); i++){
+            args[0][i] = tolower(args[0][i]);
         }
 
-        printf("%s", command);
 
         ENTRY e, *ep;
-        e.key = command;
+        e.key = args[0];
         int success = hsearch_r(e, FIND, &ep, CommandArgs);
 
         int command_data = ep ? (intptr_t)ep->data: 0;
-        printf("%d\n", command_data);
+
+        //handles argument parsing and passing those values to the method that performs the necessary logic
         switch(command_data)
         {
             case 1:
                 break;
-            case 2:
+            case 2: //load
+                load(&cpu);
                 break;
             case 3:
                 break;
@@ -191,18 +213,26 @@ int main(int argc, char *argv[])
                 break;
             case 8:
                 break;
-            case 9: //exit program
+            case 9: //clean program
+
+                initialize_CPU(&cpu);
                 break;
             case 10: //exit program
-            exit_Program();
-            break;
+                exit_Program();
+                break;
             default:
-                printf("command not found, use \"help\" to see a list of commands");
+                printf("command not found, use \"help\" to see a list of commands\n");
                 break;
         }
 
         //free temp values
         free(input);
+        free(token);
+        for(int i = 0; i < sizeof(args) / sizeof(char *); i++)
+        {
+            free(args[i]);
+        }
+        free(args);
     }
 
     return 0;

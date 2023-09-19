@@ -18,5 +18,6 @@ struct CPU
 };
 
 void initialize_CPU(struct CPU* cpu);
+//void load_CPU(struct CPU* cpu, );
 
 #endif
